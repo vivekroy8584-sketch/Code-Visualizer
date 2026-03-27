@@ -1,0 +1,322 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-mono, monospace); }
+#app { padding: 16px 0; display: flex; flex-direction: column; gap: 14px; }
+
+.top-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.snippet-select { font-size: 12px; padding: 6px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; flex: 1; min-width: 160px; }
+.ctrl-btn { font-size: 12px; padding: 6px 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; white-space: nowrap; }
+.ctrl-btn:hover { background: var(--color-background-secondary); }
+.ctrl-btn:disabled { opacity: 0.4; cursor: default; }
+.ctrl-btn.primary { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+.step-counter { font-size: 12px; color: var(--color-text-secondary); margin-left: auto; white-space: nowrap; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .panels { grid-template-columns: 1fr; } }
+
+.panel { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.panel-header { padding: 8px 12px; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); background: var(--color-background-secondary); display: flex; align-items: center; gap: 6px; }
+.panel-dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-code { background: #888; }
+.dot-stack { background: #3B8BD4; }
+.dot-heap { background: #1D9E75; }
+.dot-log { background: #BA7517; }
+
+.code-panel { background: var(--color-background-primary); }
+.code-lines { padding: 8px 0; font-size: 12px; line-height: 1.9; }
+.code-line { padding: 0 12px; display: flex; gap: 8px; align-items: flex-start; cursor: default; transition: background 0.15s; }
+.code-line.active { background: rgba(239, 159, 39, 0.15); border-left: 2px solid #EF9F27; padding-left: 10px; }
+.code-line.executed { background: rgba(29, 158, 117, 0.07); }
+.line-num { color: var(--color-text-tertiary); min-width: 18px; user-select: none; font-size: 11px; padding-top: 1px; }
+.line-code { color: var(--color-text-primary); white-space: pre; }
+.kw { color: #534AB7; } 
+.fn { color: #0F6E56; }
+.num { color: #854F0B; }
+.str { color: #993C1D; }
+.cm { color: var(--color-text-tertiary); font-style: italic; }
+.op { color: #993556; }
+
+.stack-panel { background: var(--color-background-primary); min-height: 200px; }
+.stack-inner { padding: 10px; display: flex; flex-direction: column-reverse; gap: 6px; min-height: 180px; }
+.frame { border: 0.5px solid #B5D4F4; border-radius: 8px; background: #E6F1FB; padding: 8px 10px; transition: all 0.25s; }
+.frame.new { animation: slideIn 0.25s ease-out; }
+.frame.popping { opacity: 0; transform: translateY(-8px); }
+@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.frame-name { font-size: 11px; font-weight: 500; color: #0C447C; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.frame-badge { font-size: 10px; font-weight: 400; color: #185FA5; background: #B5D4F4; border-radius: 4px; padding: 1px 5px; }
+.frame-vars { display: flex; flex-direction: column; gap: 3px; }
+.var-row { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+.var-name { color: #185FA5; min-width: 60px; }
+.var-val { color: #0C447C; font-weight: 500; }
+.var-type { color: #378ADD; font-size: 10px; }
+.ptr-arrow { color: #1D9E75; font-size: 10px; }
+.empty-stack { font-size: 11px; color: var(--color-text-tertiary); text-align: center; padding: 30px 0; }
+
+.heap-panel { background: var(--color-background-primary); min-height: 200px; }
+.heap-inner { padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; min-height: 180px; align-content: flex-start; }
+.heap-obj { border: 0.5px solid #9FE1CB; border-radius: 8px; background: #E1F5EE; padding: 7px 9px; transition: all 0.3s; min-width: 90px; }
+.heap-obj.new { animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.heap-obj.freed { opacity: 0; transform: scale(0.85); border-color: #F7C1C1; background: #FCEBEB; }
+.heap-obj.gc { border-color: #FAC775; background: #FAEEDA; }
+@keyframes popIn { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+.obj-header { font-size: 10px; font-weight: 500; color: #085041; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.obj-addr { font-size: 9px; color: #0F6E56; background: #9FE1CB; border-radius: 3px; padding: 1px 4px; }
+.obj-field { font-size: 10px; color: #08504199; display: flex; gap: 5px; margin-top: 2px; }
+.field-k { color: #0F6E56; }
+.field-v { color: #085041; font-weight: 500; }
+.empty-heap { font-size: 11px; color: var(--color-text-tertiary); text-align: center; padding: 30px 0; width: 100%; }
+
+.log-panel { background: var(--color-background-primary); }
+.log-inner { padding: 8px 12px; font-size: 11px; line-height: 1.8; min-height: 60px; max-height: 90px; overflow-y: auto; color: var(--color-text-secondary); }
+.log-entry { display: flex; gap: 6px; }
+.log-step { color: var(--color-text-tertiary); min-width: 28px; }
+.log-text { color: var(--color-text-primary); }
+.log-text.push { color: #185FA5; }
+.log-text.pop  { color: #993C1D; }
+.log-text.alloc { color: #085041; }
+.log-text.free { color: #A32D2D; }
+.log-text.gc-txt { color: #854F0B; }
+.log-text.ret { color: #534AB7; }
+
+.explanation { font-size: 12px; line-height: 1.7; color: var(--color-text-secondary); padding: 10px 14px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); border-left: 3px solid #EF9F27; min-height: 40px; }
+.explanation strong { color: var(--color-text-primary); font-weight: 500; }
+
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--color-text-secondary); }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-box { width: 12px; height: 12px; border-radius: 3px; border: 0.5px solid; }
+</style>
+
+<div id="app">
+  <div class="top-bar">
+    <select class="snippet-select" id="snippet-sel" onchange="loadSnippet()">
+      <option value="0">Recursive factorial</option>
+      <option value="1">Object allocation &amp; GC</option>
+      <option value="2">Closures &amp; scope</option>
+      <option value="3">Linked list construction</option>
+    </select>
+    <button class="ctrl-btn" id="btn-prev" onclick="step(-1)" disabled>← Prev</button>
+    <button class="ctrl-btn primary" id="btn-next" onclick="step(1)">Next →</button>
+    <button class="ctrl-btn" onclick="resetViz()">Reset</button>
+    <span class="step-counter" id="step-counter">Step 0 / 0</span>
+  </div>
+
+  <div class="explanation" id="explanation">Select a snippet and press <strong>Next</strong> to step through execution.</div>
+
+  <div class="panels">
+    <div class="panel code-panel">
+      <div class="panel-header"><span class="panel-dot dot-code"></span>Source code</div>
+      <div class="code-lines" id="code-lines"></div>
+    </div>
+    <div class="panel stack-panel">
+      <div class="panel-header"><span class="panel-dot dot-stack"></span>Call stack</div>
+      <div class="stack-inner" id="stack-inner"><div class="empty-stack">Stack is empty</div></div>
+    </div>
+    <div class="panel heap-panel">
+      <div class="panel-header"><span class="panel-dot dot-heap"></span>Heap memory</div>
+      <div class="heap-inner" id="heap-inner"><div class="empty-heap">No objects allocated</div></div>
+    </div>
+    <div class="panel log-panel">
+      <div class="panel-header"><span class="panel-dot dot-log"></span>Execution log</div>
+      <div class="log-inner" id="log-inner"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span style="font-weight:500;color:var(--color-text-primary)">Legend:</span>
+    <div class="legend-item"><div class="legend-box" style="background:#E6F1FB;border-color:#B5D4F4"></div> Stack frame</div>
+    <div class="legend-item"><div class="legend-box" style="background:#E1F5EE;border-color:#9FE1CB"></div> Heap object (live)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#FAEEDA;border-color:#FAC775"></div> Marked for GC</div>
+    <div class="legend-item"><div class="legend-box" style="background:#FCEBEB;border-color:#F7C1C1"></div> Freed / collected</div>
+    <div class="legend-item"><div class="legend-box" style="background:rgba(239,159,39,0.15);border-color:#EF9F27"></div> Active line</div>
+  </div>
+</div>
+
+<script>
+const SNIPPETS = [
+{
+  name: "Recursive factorial",
+  lines: [
+    { html: '<span class="kw">function</span> <span class="fn">factorial</span>(n) {' },
+    { html: '  <span class="kw">if</span> (n <span class="op"><=</span> <span class="num">1</span>) <span class="kw">return</span> <span class="num">1</span>;' },
+    { html: '  <span class="kw">return</span> n <span class="op">*</span> <span class="fn">factorial</span>(n <span class="op">-</span> <span class="num">1</span>);' },
+    { html: '}' },
+    { html: '' },
+    { html: '<span class="kw">let</span> result <span class="op">=</span> <span class="fn">factorial</span>(<span class="num">3</span>);' },
+    { html: '<span class="cm">// result === 6</span>' },
+  ],
+  steps: [
+    { line:5, explain:"<strong>Call site:</strong> We invoke <code>factorial(3)</code>. The JS engine creates an execution context and pushes it onto the call stack.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]}], heap:[], log:{t:"push",m:"Push global frame"} },
+    { line:0, explain:"<strong>factorial(3) enters:</strong> A new stack frame is created with its own local scope. The parameter <code>n = 3</code> lives in this frame's memory slot.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"call",vars:[{k:"n",v:"3",t:"param"},{k:"[return addr]",v:"line 6",t:"meta"}]}], heap:[], log:{t:"push",m:"Push factorial(3) frame"} },
+    { line:1, explain:"<strong>Condition check:</strong> The engine reads <code>n</code> (= 3) from the current frame. <code>3 <= 1</code> is false, so we fall through to the recursive call.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"active",vars:[{k:"n",v:"3",t:"param"}]}], heap:[], log:{t:"ret",m:"n=3 > 1, recurse"} },
+    { line:2, explain:"<strong>Recursive call:</strong> <code>factorial(2)</code> is invoked. The current frame is paused; a new frame is pushed on top with its own <code>n</code>.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"3",t:"param"}]},{name:"factorial",badge:"call",vars:[{k:"n",v:"2",t:"param"},{k:"[return addr]",v:"line 3",t:"meta"}]}], heap:[], log:{t:"push",m:"Push factorial(2) frame"} },
+    { line:1, explain:"<strong>factorial(2) checks condition:</strong> Again <code>n = 2</code>, which is > 1. Another recursive call will happen. Stack keeps growing.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"3",t:"param"}]},{name:"factorial",badge:"active",vars:[{k:"n",v:"2",t:"param"}]}], heap:[], log:{t:"ret",m:"n=2 > 1, recurse"} },
+    { line:2, explain:"<strong>Base case approaching:</strong> <code>factorial(1)</code> is now pushed. This is the deepest point — three frames consuming stack memory simultaneously.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"3",t:"param"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"2",t:"param"}]},{name:"factorial",badge:"call",vars:[{k:"n",v:"1",t:"param"},{k:"[return addr]",v:"line 3",t:"meta"}]}], heap:[], log:{t:"push",m:"Push factorial(1) frame — deepest"} },
+    { line:1, explain:"<strong>Base case hit!</strong> <code>n = 1</code>, condition <code>n <= 1</code> is true. We return <code>1</code>. This frame is about to be popped — its memory is immediately reclaimed.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"3",t:"param"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"2",t:"param"}]},{name:"factorial",badge:"returning",vars:[{k:"n",v:"1",t:"param"},{k:"↩ returns",v:"1",t:"ret"}]}], heap:[], log:{t:"pop",m:"factorial(1) returns 1 → pop frame"} },
+    { line:2, explain:"<strong>Unwinding begins:</strong> <code>factorial(1)</code> frame is destroyed. Control returns to <code>factorial(2)</code>, which now computes <code>2 * 1 = 2</code> and returns.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"waiting",vars:[{k:"n",v:"3",t:"param"}]},{name:"factorial",badge:"returning",vars:[{k:"n",v:"2",t:"param"},{k:"↩ returns",v:"2",t:"ret"}]}], heap:[], log:{t:"pop",m:"factorial(2) returns 2 → pop frame"} },
+    { line:2, explain:"<strong>Stack unwinds further:</strong> <code>factorial(2)</code> frame destroyed. <code>factorial(3)</code> resumes, computes <code>3 * 2 = 6</code>, and returns to the call site.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"undefined",t:"let"}]},{name:"factorial",badge:"returning",vars:[{k:"n",v:"3",t:"param"},{k:"↩ returns",v:"6",t:"ret"}]}], heap:[], log:{t:"pop",m:"factorial(3) returns 6 → pop frame"} },
+    { line:5, explain:"<strong>Done!</strong> All recursive frames are gone. The global frame stores the result <code>6</code>. Stack depth is back to 1. Stack memory from all recursive calls is fully reclaimed.", stack:[{name:"global",badge:"module",vars:[{k:"result",v:"6",t:"let"}]}], heap:[], log:{t:"ret",m:"result = 6 stored in global frame"} },
+  ]
+},
+{
+  name: "Object allocation & GC",
+  lines: [
+    { html: '<span class="kw">function</span> <span class="fn">createUser</span>(name) {' },
+    { html: '  <span class="kw">return</span> { name, id: <span class="fn">Math.random</span>() };' },
+    { html: '}' },
+    { html: '' },
+    { html: '<span class="kw">let</span> u1 <span class="op">=</span> <span class="fn">createUser</span>(<span class="str">"Alice"</span>);' },
+    { html: '<span class="kw">let</span> u2 <span class="op">=</span> <span class="fn">createUser</span>(<span class="str">"Bob"</span>);' },
+    { html: 'u1 <span class="op">=</span> <span class="kw">null</span>; <span class="cm">// Alice unreachable</span>' },
+    { html: '<span class="cm">// GC runs — Alice collected</span>' },
+    { html: '<span class="fn">console</span>.log(u2.name); <span class="cm">// "Bob"</span>' },
+  ],
+  steps: [
+    { line:4, explain:"<strong>Calling createUser(\"Alice\"):</strong> A stack frame is created. The string <code>\"Alice\"</code> is passed as a parameter.", stack:[{name:"global",vars:[{k:"u1",v:"undefined",t:"let"},{k:"u2",v:"undefined",t:"let"}]},{name:"createUser",badge:"call",vars:[{k:"name",v:'"Alice"',t:"param"}]}], heap:[], log:{t:"push",m:"Push createUser(\"Alice\") frame"} },
+    { line:1, explain:"<strong>Heap allocation:</strong> An object literal <code>{ name, id }</code> is created. Objects always live on the <strong>heap</strong> (not the stack) because their size and lifetime are dynamic. A pointer to the heap address is returned.", stack:[{name:"global",vars:[{k:"u1",v:"undefined",t:"let"},{k:"u2",v:"undefined",t:"let"}]},{name:"createUser",badge:"active",vars:[{k:"name",v:'"Alice"',t:"param"},{k:"↩ →",v:"0x1a3f",t:"ptr"}]}], heap:[{id:"0x1a3f",label:"Object",fields:[{k:"name",v:'"Alice"'},{k:"id",v:"0.847"}],state:"new"}], log:{t:"alloc",m:"Heap alloc 0x1a3f: { name: \"Alice\" }"} },
+    { line:4, explain:"<strong>Frame popped, pointer stored:</strong> <code>createUser</code> frame is destroyed. But the heap object survives — global variable <code>u1</code> now holds a <em>reference</em> (pointer) to it.", stack:[{name:"global",vars:[{k:"u1",v:"→ 0x1a3f",t:"ptr"},{k:"u2",v:"undefined",t:"let"}]}], heap:[{id:"0x1a3f",label:"Object",fields:[{k:"name",v:'"Alice"'},{k:"id",v:"0.847"}],state:""}], log:{t:"pop",m:"Pop frame, u1 = 0x1a3f (Alice)"} },
+    { line:5, explain:"<strong>Allocating Bob:</strong> Second call creates another heap object at a different address. Stack frame is pushed, object allocated, frame popped.", stack:[{name:"global",vars:[{k:"u1",v:"→ 0x1a3f",t:"ptr"},{k:"u2",v:"→ 0x2b8c",t:"ptr"}]}], heap:[{id:"0x1a3f",label:"Object",fields:[{k:"name",v:'"Alice"'},{k:"id",v:"0.847"}],state:""},{id:"0x2b8c",label:"Object",fields:[{k:"name",v:'"Bob"'},{k:"id",v:"0.312"}],state:"new"}], log:{t:"alloc",m:"Heap alloc 0x2b8c: { name: \"Bob\" }"} },
+    { line:6, explain:"<strong>Nulling the reference:</strong> <code>u1 = null</code> means the global variable no longer points to Alice's object. The heap object at <code>0x1a3f</code> is now <em>unreachable</em> — no variable holds a reference to it.", stack:[{name:"global",vars:[{k:"u1",v:"null",t:"let"},{k:"u2",v:"→ 0x2b8c",t:"ptr"}]}], heap:[{id:"0x1a3f",label:"Object ⚠",fields:[{k:"name",v:'"Alice"'},{k:"id",v:"0.847"}],state:"gc"},{id:"0x2b8c",label:"Object",fields:[{k:"name",v:'"Bob"'},{k:"id",v:"0.312"}],state:""}], log:{t:"gc-txt",m:"0x1a3f unreachable — marked for GC"} },
+    { line:7, explain:"<strong>Garbage collection:</strong> The GC (mark-and-sweep) traces all references from roots (global, stack). Alice's object is not reachable from any root — it is collected and its memory is freed back to the allocator.", stack:[{name:"global",vars:[{k:"u1",v:"null",t:"let"},{k:"u2",v:"→ 0x2b8c",t:"ptr"}]}], heap:[{id:"0x1a3f",label:"Freed",fields:[{k:"name",v:'"Alice"'},{k:"id",v:"0.847"}],state:"freed"},{id:"0x2b8c",label:"Object",fields:[{k:"name",v:'"Bob"'},{k:"id",v:"0.312"}],state:""}], log:{t:"free",m:"GC collected 0x1a3f — memory freed"} },
+    { line:8, explain:"<strong>Bob survives:</strong> <code>u2</code> still holds a live reference to <code>0x2b8c</code>. Bob's object is reachable and will not be collected. <code>console.log</code> reads <code>name</code> from the heap object.", stack:[{name:"global",vars:[{k:"u1",v:"null",t:"let"},{k:"u2",v:"→ 0x2b8c",t:"ptr"}]},{name:"console.log",badge:"call",vars:[{k:"arg",v:'"Bob"',t:"string"}]}], heap:[{id:"0x2b8c",label:"Object",fields:[{k:"name",v:'"Bob"'},{k:"id",v:"0.312"}],state:""}], log:{t:"ret",m:"Output: \"Bob\""} },
+  ]
+},
+{
+  name: "Closures & scope",
+  lines: [
+    { html: '<span class="kw">function</span> <span class="fn">makeCounter</span>() {' },
+    { html: '  <span class="kw">let</span> count <span class="op">=</span> <span class="num">0</span>;' },
+    { html: '  <span class="kw">return</span> <span class="kw">function</span>() {' },
+    { html: '    count<span class="op">++</span>;' },
+    { html: '    <span class="kw">return</span> count;' },
+    { html: '  };' },
+    { html: '}' },
+    { html: '<span class="kw">const</span> inc <span class="op">=</span> <span class="fn">makeCounter</span>();' },
+    { html: 'inc(); <span class="cm">// 1</span>' },
+    { html: 'inc(); <span class="cm">// 2</span>' },
+  ],
+  steps: [
+    { line:7, explain:"<strong>Calling makeCounter():</strong> A stack frame is created for <code>makeCounter</code>. Its local variable <code>count</code> starts at <code>0</code>.", stack:[{name:"global",vars:[{k:"inc",v:"undefined",t:"const"}]},{name:"makeCounter",badge:"call",vars:[{k:"count",v:"0",t:"let"}]}], heap:[], log:{t:"push",m:"Push makeCounter frame, count=0"} },
+    { line:2, explain:"<strong>Closure object allocated on heap:</strong> An anonymous function is created and <em>closes over</em> the variable <code>count</code>. The closure is an object on the heap that holds a reference to <code>makeCounter</code>'s scope environment.", stack:[{name:"global",vars:[{k:"inc",v:"undefined",t:"const"}]},{name:"makeCounter",badge:"active",vars:[{k:"count",v:"0",t:"let"},{k:"↩ →",v:"0xc1a0",t:"ptr"}]}], heap:[{id:"0xc1a0",label:"Closure fn",fields:[{k:"code",v:"{ count++ }"},{k:"[[env]]",v:"→ 0xe500"}],state:"new"},{id:"0xe500",label:"Env scope",fields:[{k:"count",v:"0"}],state:"new"}], log:{t:"alloc",m:"Alloc closure 0xc1a0 + env 0xe500"} },
+    { line:7, explain:"<strong>makeCounter frame popped — but scope lives!</strong> Normally when a function returns, its stack frame (and locals) are destroyed. Here <code>count</code> is inside an <em>environment record</em> on the heap that the closure references. It will NOT be garbage collected.", stack:[{name:"global",vars:[{k:"inc",v:"→ 0xc1a0",t:"ptr"}]}], heap:[{id:"0xc1a0",label:"Closure fn",fields:[{k:"code",v:"{ count++ }"},{k:"[[env]]",v:"→ 0xe500"}],state:""},{id:"0xe500",label:"Env scope",fields:[{k:"count",v:"0"}],state:""}], log:{t:"pop",m:"makeCounter frame gone — env persists on heap"} },
+    { line:8, explain:"<strong>First call inc():</strong> The closure function is invoked. Its stack frame gets a reference to the environment at <code>0xe500</code>. It reads <code>count</code> from the heap env, increments it to <code>1</code>.", stack:[{name:"global",vars:[{k:"inc",v:"→ 0xc1a0",t:"ptr"}]},{name:"<anon>",badge:"call",vars:[{k:"[[env]]",v:"→ 0xe500",t:"ref"},{k:"↩ count",v:"1",t:"ret"}]}], heap:[{id:"0xc1a0",label:"Closure fn",fields:[{k:"code",v:"{ count++ }"},{k:"[[env]]",v:"→ 0xe500"}],state:""},{id:"0xe500",label:"Env scope",fields:[{k:"count",v:"1"}],state:"new"}], log:{t:"ret",m:"inc() → 1; env count mutated to 1"} },
+    { line:9, explain:"<strong>Second call inc():</strong> Same closure, same heap environment. <code>count</code> is still <code>1</code> in the env record. It becomes <code>2</code>. The closure <em>remembers</em> its environment across calls.", stack:[{name:"global",vars:[{k:"inc",v:"→ 0xc1a0",t:"ptr"}]},{name:"<anon>",badge:"call",vars:[{k:"[[env]]",v:"→ 0xe500",t:"ref"},{k:"↩ count",v:"2",t:"ret"}]}], heap:[{id:"0xc1a0",label:"Closure fn",fields:[{k:"code",v:"{ count++ }"},{k:"[[env]]",v:"→ 0xe500"}],state:""},{id:"0xe500",label:"Env scope",fields:[{k:"count",v:"2"}],state:"new"}], log:{t:"ret",m:"inc() → 2; env count mutated to 2"} },
+  ]
+},
+{
+  name: "Linked list construction",
+  lines: [
+    { html: '<span class="kw">function</span> <span class="fn">Node</span>(val, next) {' },
+    { html: '  <span class="kw">this</span>.val <span class="op">=</span> val;' },
+    { html: '  <span class="kw">this</span>.next <span class="op">=</span> next;' },
+    { html: '}' },
+    { html: '' },
+    { html: '<span class="kw">let</span> n3 <span class="op">=</span> <span class="kw">new</span> <span class="fn">Node</span>(<span class="num">30</span>, <span class="kw">null</span>);' },
+    { html: '<span class="kw">let</span> n2 <span class="op">=</span> <span class="kw">new</span> <span class="fn">Node</span>(<span class="num">20</span>, n3);' },
+    { html: '<span class="kw">let</span> n1 <span class="op">=</span> <span class="kw">new</span> <span class="fn">Node</span>(<span class="num">10</span>, n2);' },
+    { html: 'n3 <span class="op">=</span> <span class="kw">null</span>; <span class="cm">// detach tail ref</span>' },
+    { html: '<span class="cm">// n1 → n2 → [n3 obj] still reachable</span>' },
+  ],
+  steps: [
+    { line:5, explain:"<strong>Allocating tail node:</strong> <code>new Node(30, null)</code> allocates a Node object on the heap. <code>val=30</code>, <code>next=null</code> (end of list). The global variable <code>n3</code> stores a pointer to it.", stack:[{name:"global",vars:[{k:"n3",v:"→ 0xaa01",t:"ptr"},{k:"n2",v:"undefined",t:"let"},{k:"n1",v:"undefined",t:"let"}]}], heap:[{id:"0xaa01",label:"Node",fields:[{k:"val",v:"30"},{k:"next",v:"null"}],state:"new"}], log:{t:"alloc",m:"Alloc Node 0xaa01 { val:30, next:null }"} },
+    { line:6, explain:"<strong>Allocating middle node:</strong> <code>new Node(20, n3)</code> creates another object. Its <code>next</code> field is a pointer to the previous node <code>0xaa01</code>. This forms the link.", stack:[{name:"global",vars:[{k:"n3",v:"→ 0xaa01",t:"ptr"},{k:"n2",v:"→ 0xbb02",t:"ptr"},{k:"n1",v:"undefined",t:"let"}]}], heap:[{id:"0xaa01",label:"Node",fields:[{k:"val",v:"30"},{k:"next",v:"null"}],state:""},{id:"0xbb02",label:"Node",fields:[{k:"val",v:"20"},{k:"next",v:"→ 0xaa01"}],state:"new"}], log:{t:"alloc",m:"Alloc Node 0xbb02 { val:20, next:0xaa01 }"} },
+    { line:7, explain:"<strong>Allocating head node:</strong> The list is now complete — three objects on the heap forming a chain: <code>n1 → n2 → n3</code>. Each <code>next</code> pointer is a heap reference.", stack:[{name:"global",vars:[{k:"n3",v:"→ 0xaa01",t:"ptr"},{k:"n2",v:"→ 0xbb02",t:"ptr"},{k:"n1",v:"→ 0xcc03",t:"ptr"}]}], heap:[{id:"0xaa01",label:"Node",fields:[{k:"val",v:"30"},{k:"next",v:"null"}],state:""},{id:"0xbb02",label:"Node",fields:[{k:"val",v:"20"},{k:"next",v:"→ 0xaa01"}],state:""},{id:"0xcc03",label:"Node",fields:[{k:"val",v:"10"},{k:"next",v:"→ 0xbb02"}],state:"new"}], log:{t:"alloc",m:"Alloc Node 0xcc03 { val:10, next:0xbb02 }"} },
+    { line:8, explain:"<strong>Detaching tail variable:</strong> <code>n3 = null</code> removes the global's direct reference to node <code>0xaa01</code>. But is it unreachable? No — <code>n2.next</code> still points to it! The GC traces from <code>n1 → n2 → 0xaa01</code>.", stack:[{name:"global",vars:[{k:"n3",v:"null",t:"let"},{k:"n2",v:"→ 0xbb02",t:"ptr"},{k:"n1",v:"→ 0xcc03",t:"ptr"}]}], heap:[{id:"0xaa01",label:"Node",fields:[{k:"val",v:"30"},{k:"next",v:"null"}],state:""},{id:"0xbb02",label:"Node",fields:[{k:"val",v:"20"},{k:"next",v:"→ 0xaa01"}],state:""},{id:"0xcc03",label:"Node",fields:[{k:"val",v:"10"},{k:"next",v:"→ 0xbb02"}],state:""}], log:{t:"gc-txt",m:"n3=null, but 0xaa01 still reachable via n1→n2→next"} },
+    { line:9, explain:"<strong>All three nodes survive GC:</strong> The GC starts at roots (<code>n1</code>, <code>n2</code>) and marks everything reachable. Following <code>next</code> pointers it can reach all 3 nodes. Nothing is collected. This is how pointer-linked structures prevent collection.", stack:[{name:"global",vars:[{k:"n3",v:"null",t:"let"},{k:"n2",v:"→ 0xbb02",t:"ptr"},{k:"n1",v:"→ 0xcc03",t:"ptr"}]}], heap:[{id:"0xaa01",label:"Node ✓",fields:[{k:"val",v:"30"},{k:"next",v:"null"}],state:""},{id:"0xbb02",label:"Node ✓",fields:[{k:"val",v:"20"},{k:"next",v:"→ 0xaa01"}],state:""},{id:"0xcc03",label:"Node ✓",fields:[{k:"val",v:"10"},{k:"next",v:"→ 0xbb02"}],state:""}], log:{t:"ret",m:"GC: all 3 nodes reachable — none collected"} },
+  ]
+}
+];
+
+let curSnippet = 0;
+let curStep = -1;
+let logEntries = [];
+
+function loadSnippet() {
+  curSnippet = parseInt(document.getElementById('snippet-sel').value);
+  resetViz();
+}
+
+function resetViz() {
+  curStep = -1;
+  logEntries = [];
+  const s = SNIPPETS[curSnippet];
+  renderCode(s.lines, -1, []);
+  document.getElementById('stack-inner').innerHTML = '<div class="empty-stack">Stack is empty</div>';
+  document.getElementById('heap-inner').innerHTML = '<div class="empty-heap">No objects allocated</div>';
+  document.getElementById('log-inner').innerHTML = '';
+  document.getElementById('explanation').innerHTML = 'Press <strong>Next →</strong> to step through execution.';
+  updateControls();
+}
+
+function step(dir) {
+  const s = SNIPPETS[curSnippet];
+  curStep = Math.max(-1, Math.min(s.steps.length - 1, curStep + dir));
+  if (curStep < 0) { resetViz(); return; }
+  const st = s.steps[curStep];
+  renderCode(s.lines, st.line, s.steps.slice(0, curStep).map(x => x.line));
+  renderStack(st.stack);
+  renderHeap(st.heap);
+  document.getElementById('explanation').innerHTML = st.explain;
+  if (dir > 0) {
+    logEntries.push({ step: curStep + 1, ...st.log });
+    renderLog();
+  }
+  updateControls();
+}
+
+function updateControls() {
+  const s = SNIPPETS[curSnippet];
+  document.getElementById('btn-prev').disabled = curStep < 0;
+  document.getElementById('btn-next').disabled = curStep >= s.steps.length - 1;
+  document.getElementById('step-counter').textContent = `Step ${Math.max(0, curStep + 1)} / ${s.steps.length}`;
+}
+
+function renderCode(lines, activeLine, executedLines) {
+  const el = document.getElementById('code-lines');
+  el.innerHTML = lines.map((l, i) => {
+    let cls = 'code-line';
+    if (i === activeLine) cls += ' active';
+    else if (executedLines.includes(i)) cls += ' executed';
+    return `<div class="${cls}"><span class="line-num">${i+1}</span><span class="line-code">${l.html}</span></div>`;
+  }).join('');
+}
+
+function renderStack(frames) {
+  const el = document.getElementById('stack-inner');
+  if (!frames || frames.length === 0) { el.innerHTML = '<div class="empty-stack">Stack is empty</div>'; return; }
+  el.innerHTML = frames.map((f, i) => {
+    const vars = (f.vars || []).map(v =>
+      `<div class="var-row"><span class="var-name">${v.k}</span><span class="var-val">${v.v}</span><span class="var-type">${v.t}</span></div>`
+    ).join('');
+    const badge = f.badge ? `<span class="frame-badge">${f.badge}</span>` : '';
+    return `<div class="frame${i === frames.length-1 ? ' new' : ''}">
+      <div class="frame-name">${f.name} ${badge}</div>
+      <div class="frame-vars">${vars}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderHeap(objects) {
+  const el = document.getElementById('heap-inner');
+  if (!objects || objects.length === 0) { el.innerHTML = '<div class="empty-heap">No objects allocated</div>'; return; }
+  el.innerHTML = objects.map(o => {
+    const fields = (o.fields || []).map(f =>
+      `<div class="obj-field"><span class="field-k">${f.k}:</span><span class="field-v">${f.v}</span></div>`
+    ).join('');
+    return `<div class="heap-obj${o.state === 'new' ? ' new' : o.state === 'freed' ? ' freed' : o.state === 'gc' ? ' gc' : ''}">
+      <div class="obj-header"><span>${o.label}</span><span class="obj-addr">${o.id}</span></div>
+      ${fields}
+    </div>`;
+  }).join('');
+}
+
+function renderLog() {
+  const el = document.getElementById('log-inner');
+  el.innerHTML = logEntries.map(e =>
+    `<div class="log-entry"><span class="log-step">#${e.step}</span><span class="log-text ${e.t}">${e.m}</span></div>`
+  ).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+loadSnippet();
+</script>
